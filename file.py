@@ -28,3 +28,87 @@ info = mutual_info_classif(X,y)
 mi_df = pd.DataFrame({ "attributes" : X.columns, "mi" : info}).sort_values(by = "mi", ascending = False)
 
 print(mi_df)
+
+top_mi = mi_df.head(10)
+sns.barplot(x="mi", y="attributes", data=top_mi)
+plt.title("Top 10 Features by Mutual Information")
+plt.show()
+
+#red_df = df[['SMOKING','SMOKING_FAMILY_HISTORY','BREATHING_ISSUE','THROAT_DISCOMFORT','ENERGY_LEVEL','STRESS_IMMUNE','FAMILY_HISTORY','LONG_TERM_ILLNESS','PULMONARY_DISEASE']]
+red_df = df
+print(red_df)
+
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.random_projection import GaussianRandomProjection
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score
+
+X = df.drop(columns=['PULMONARY_DISEASE'])
+y = df['PULMONARY_DISEASE']
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=45)
+
+scaler = StandardScaler()
+
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+jl_proj = GaussianRandomProjection(n_components=10, random_state=42)
+
+X_train_jl = jl_proj.fit_transform(X_train_scaled)
+X_test_jl = jl_proj.transform(X_test_scaled)
+
+rf_clf = RandomForestClassifier(n_estimators=100, random_state=42)
+rf_clf.fit(X_train_jl, y_train)
+
+y_pred = rf_clf.predict(X_test_jl)
+accuracy = accuracy_score(y_test, y_pred)
+
+print(f"Random Forest Accuracy with JL Projection: ", accuracy)
+
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+
+rf_clf = RandomForestClassifier(n_estimators=200, random_state=45)
+
+rf_clf.fit(X_train_scaled, y_train)
+
+rf_train_preds = rf_clf.predict(X_train_scaled)
+rf_test_preds = rf_clf.predict(X_test_scaled)
+
+gb_clf = GradientBoostingClassifier(n_estimators=100, random_state=45)
+gb_clf.fit(rf_train_preds.reshape(-1, 1), y_train)
+
+y_pred = gb_clf.predict(rf_test_preds.reshape(-1, 1))
+
+accuracy = accuracy_score(y_test, y_pred)
+
+print(f"Random Forest with Gradient Boosting: ", accuracy)
+
+from sklearn.naive_bayes import GaussianNB
+from sklearn.svm import SVC
+
+raw_df = red_df.copy()
+
+X = raw_df.drop(columns=['PULMONARY_DISEASE'])
+y = raw_df['PULMONARY_DISEASE']
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=45)
+
+nb_clf = GaussianNB()
+nb_clf.fit(X_train, y_train)
+nb_pred = nb_clf.predict(X_test)
+nb_acc1 = nb_clf.score(X_test, y_test)
+
+svm_clf = SVC(kernel='rbf', random_state=45)
+svm_clf.fit(X_train, y_train)
+svm_pred = svm_clf.predict(X_test)
+svm_acc = accuracy_score(y_test, svm_pred)
+
+rf = RandomForestClassifier(n_estimators=100, random_state=45)
+rf.fit(X_train, y_train)
+rf_acc = rf.score(X_test,y_test)
+
+print(f"Naive Bayes Accuracy : ", nb_acc1)
+print(f"Random Forest Accuracy : ", rf_acc)
+print(f"SVM Accuracy : ", svm_acc)
